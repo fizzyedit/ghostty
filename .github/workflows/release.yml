@@ -1,0 +1,26 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    uses: fizzyedit/plugin-build-action/.github/workflows/build.yml@v1
+    permissions:
+      contents: write
+    with:
+      id: ghostty
+      version: ${{ needs.version.outputs.version }}
+      fizzy-sdk-version: "0.15.0"
+      abi-fingerprint: "0x6d237af3d8d0b777"
+      min-sdk-version: "0.15.0"
+      zig-version: "0.16.0"
