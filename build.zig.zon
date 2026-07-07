@@ -4,19 +4,15 @@
     .fingerprint = 0x64407a2a356ac9fe,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
-        // Local path dep during development so the ABI fingerprint always matches the
-        // fizzy host built from the same tree. Switch to a pinned `git+https` url+hash
-        // (like the markdown plugin) when distributing.
         .fizzy = .{
-            .path = "../../fizzy",
+            .url = "https://github.com/fizzyedit/fizzy/archive/b5cfae1bd59be4e6f34780173127faf0ee4dbb29.tar.gz",
+            .hash = "fizzy-0.0.20-c46aVn7UMwBGEVO6-XevM4CP5pPNpZWp8Bi1_pE3NJHW",
+            //.path = "../../fizzy",
         },
-        // Prebuilt libghostty-vt from fizzyedit/ghostty_vt (CI builds with Zig 0.15.x).
-        // Local dev: populate ../ghostty_vt/package/{include,lib} from a release tarball
-        // (see ghostty_vt README). Release builds: swap to the url+hash below.
         .ghostty_vt = .{
-            .path = "../ghostty_vt/package",
-            // .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.1/ghostty-vt-v0.1.1.tar.gz",
-            // .hash = "ghostty_vt-0.1.1-dsnJsMXY4AND0YAirbbMW0NoD1berBNnRTUE9jQQTG0h",
+            //.path = "../ghostty_vt/package",
+            .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.1/ghostty-vt-v0.1.1.tar.gz",
+            .hash = "ghostty_vt-0.1.1-dsnJsMXY4AND0YAirbbMW0NoD1berBNnRTUE9jQQTG0h",
         },
     },
     .paths = .{
