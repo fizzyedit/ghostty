@@ -9,7 +9,7 @@ const std = @import("std");
 const dvui = @import("dvui");
 const sdk = @import("sdk");
 const Terminal = @import("Terminal.zig");
-const Pty = @import("Pty.zig");
+const Pty = @import("Pty.zig").Pty;
 
 const State = @This();
 

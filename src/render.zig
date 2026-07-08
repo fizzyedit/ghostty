@@ -9,7 +9,7 @@ const ghostty = @import("../ghostty.zig");
 const dvui = ghostty.dvui;
 const State = ghostty.State;
 const Terminal = @import("Terminal.zig");
-const Pty = @import("Pty.zig");
+const Pty = @import("Pty.zig").Pty;
 const input = @import("input.zig");
 
 /// `BottomView.draw`: `fn(ctx: ?*anyopaque) anyerror!void`. `ctx` is the plugin's `*State`.

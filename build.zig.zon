@@ -11,8 +11,8 @@
         },
         .ghostty_vt = .{
             //.path = "../ghostty_vt/package",
-            .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.1/ghostty-vt-v0.1.1.tar.gz",
-            .hash = "ghostty_vt-0.1.1-dsnJsMXY4AND0YAirbbMW0NoD1berBNnRTUE9jQQTG0h",
+            .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.2/ghostty-vt-v0.1.2.tar.gz",
+            .hash = "ghostty_vt-0.0.0-dev-dsnJsEdCtQM4_stendvmMJBuxfGIzZA7LziNlLslVyHY",
         },
     },
     .paths = .{

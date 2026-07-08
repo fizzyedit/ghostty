@@ -9,7 +9,7 @@ const dvui = ghostty.dvui;
 const c = ghostty.c;
 const State = ghostty.State;
 const Terminal = @import("Terminal.zig");
-const Pty = @import("Pty.zig");
+const Pty = @import("Pty.zig").Pty;
 
 /// Process keyboard/mouse events during `drawTerminal` (widget is live here).
 pub fn handle(state: *State, wd: *dvui.WidgetData) void {
