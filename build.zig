@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
 
     const lib = fizzy.plugin.create(b, .{
         .name = "ghostty",
+        .version = @import("build.zig.zon").version,
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("root.zig"),

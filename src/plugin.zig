@@ -12,11 +12,14 @@ const State = ghostty.State;
 const render = ghostty.render;
 const input = @import("input.zig");
 
+/// Version forwarded from `build.zig.zon` via the build-injected options module — bump it there.
+const plugin_options = @import("fizzy_plugin_options");
+
 /// Identity + versions embedded in the dylib (read by the host on load).
 pub const manifest = sdk.PluginManifest{
     .id = "ghostty",
     .name = "Ghostty",
-    .version = .{ .major = 0, .minor = 0, .patch = 1 },
+    .version = plugin_options.version,
 };
 
 /// Stable, plugin-namespaced contribution id.

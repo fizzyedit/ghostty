@@ -33,14 +33,15 @@ pub const Pty = struct {
     };
 
     pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16) !Pty {
-        _ = setenv("TERM", "xterm-256color", 1);
-
         var ws = Winsize{ .ws_row = rows, .ws_col = cols };
         var amaster: c_int = -1;
         const pid = forkpty(&amaster, null, null, &ws);
         if (pid < 0) return error.ForkptyFailed;
 
         if (pid == 0) {
+            // Child-only: `setenv` here would otherwise mutate the whole host editor
+            // process's environment, since `open` runs on the GUI thread before fork.
+            _ = setenv("TERM", "xterm-256color", 1);
             const shell: [*:0]const u8 = std.c.getenv("SHELL") orelse "/bin/zsh";
             const argv = [_:null]?[*:0]const u8{shell};
             _ = execvp(shell, &argv);
@@ -77,7 +78,15 @@ pub const Pty = struct {
     }
 
     pub fn write(self: *Pty, bytes: []const u8) void {
-        _ = std.c.write(self.master, bytes.ptr, bytes.len);
+        var off: usize = 0;
+        while (off < bytes.len) {
+            const n = std.c.write(self.master, bytes.ptr + off, bytes.len - off);
+            if (n < 0) {
+                if (std.c._errno().* == @intFromEnum(std.c.E.INTR)) continue;
+                break; // real error (e.g. EPIPE on child exit) — drop the rest
+            }
+            off += @intCast(n);
+        }
     }
 
     pub fn setSize(self: *Pty, cols: u16, rows: u16, cell_w_px: u32, cell_h_px: u32) void {
