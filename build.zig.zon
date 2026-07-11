@@ -1,12 +1,12 @@
 .{
     .name = .ghostty,
-    .version = "0.1.1",
+    .version = "0.1.2",
     .fingerprint = 0x64407a2a356ac9fe,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .fizzy = .{
-            .url = "https://github.com/fizzyedit/fizzy/archive/992cc85fdfdaa93890b0a1a0af1a1d6f79408748.tar.gz",
-            .hash = "fizzy-0.0.20-c46aVuEiNgDv0WAxDvZhe32R7VRuiiTaBZ7TBPfzjb2C",
+            .url = "https://github.com/fizzyedit/fizzy/archive/68d1013633cb71f864c80f69ee4cc85f44d01ee7.tar.gz",
+            .hash = "fizzy-0.0.20-c46aVr1ANgC7yrsF-QtXD6ls5rMhXRSsGH0SlpbRTJwo",
             //.path = "../../fizzy",
         },
         .ghostty_vt = .{
