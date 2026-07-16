@@ -5,12 +5,23 @@
 //! threads yet — this verifies the whole Terminal→render-state→dvui pipeline. M3b swaps the
 //! static feed for a live `forkpty` shell + read thread; M5 makes the grid track the panel size.
 const std = @import("std");
+const builtin = @import("builtin");
 const ghostty = @import("../ghostty.zig");
 const dvui = ghostty.dvui;
 const State = ghostty.State;
 const Terminal = @import("Terminal.zig");
 const Pty = @import("Pty.zig").Pty;
 const input = @import("input.zig");
+
+/// Fallback cwd for the shell when no project is open: the user's home directory, matching
+/// what a normal terminal app opens to. Without this, `Pty.open` falls back to whatever cwd
+/// the app process itself inherited, which for a packaged `.app` launched from Finder/Dock is
+/// `/` rather than `~`. Null if the relevant env var isn't set.
+fn defaultCwd() ?[]const u8 {
+    const name = if (builtin.os.tag == .windows) "USERPROFILE" else "HOME";
+    const value = std.c.getenv(name) orelse return null;
+    return std.mem.span(value);
+}
 
 /// `BottomView.draw`: `fn(ctx: ?*anyopaque) anyerror!void`. `ctx` is the plugin's `*State`.
 pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
@@ -36,7 +47,10 @@ pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
     // Lazily create the terminal + shell PTY, sized to fit the panel.
     if (state.terminal == null) {
         state.terminal = try Terminal.init(grid.cols, grid.rows);
-        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows);
+        // Opens the shell in the current project folder (matching VSCode's integrated
+        // terminal) rather than wherever the app itself was launched from — see
+        // `Pty.open`'s doc comment. Falls back to the home directory when no project is open.
+        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows, ghostty.sdk.host().folder() orelse defaultCwd());
         state.pty.?.setSize(grid.cols, grid.rows, grid.cell_w_px, grid.cell_h_px);
         try state.pty.?.startReader();
     }

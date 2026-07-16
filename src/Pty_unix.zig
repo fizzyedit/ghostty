@@ -24,6 +24,7 @@ pub const Pty = struct {
     extern "c" fn forkpty(amaster: *c_int, name: ?[*:0]u8, termp: ?*const anyopaque, winp: ?*const Winsize) c_int;
     extern "c" fn execvp(file: [*:0]const u8, argv: [*:null]const ?[*:0]const u8) c_int;
     extern "c" fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+    extern "c" fn chdir(path: [*:0]const u8) c_int;
     extern "c" fn ioctl(fd: c_int, request: c_ulong, ...) c_int;
     extern "c" fn _exit(code: c_int) noreturn;
 
@@ -32,9 +33,26 @@ pub const Pty = struct {
         else => 0x80087467, // macOS / BSD
     };
 
-    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16) !Pty {
+    /// `cwd` — the shell opens here instead of wherever the app itself was launched from (its
+    /// own bundle directory for a packaged `.app`), matching VSCode's integrated terminal
+    /// (opens in the current workspace root). Null (no project open yet) or too long for
+    /// `cwd_buf` falls back to whatever cwd the app process itself has.
+    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16, cwd: ?[]const u8) !Pty {
         var ws = Winsize{ .ws_row = rows, .ws_col = cols };
         var amaster: c_int = -1;
+
+        // Built *before* the fork: nothing between fork() and exec() in the child may
+        // allocate (see the sibling comment on `setenv`), and the stack this buffer lives on
+        // is copy-on-write duplicated into the child by fork() itself, so it's already there —
+        // no cross-fork pointer hazard.
+        var cwd_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const cwd_z: ?[:0]const u8 = if (cwd) |c| blk: {
+            if (c.len >= cwd_buf.len) break :blk null;
+            @memcpy(cwd_buf[0..c.len], c);
+            cwd_buf[c.len] = 0;
+            break :blk cwd_buf[0..c.len :0];
+        } else null;
+
         const pid = forkpty(&amaster, null, null, &ws);
         if (pid < 0) return error.ForkptyFailed;
 
@@ -42,6 +60,9 @@ pub const Pty = struct {
             // Child-only: `setenv` here would otherwise mutate the whole host editor
             // process's environment, since `open` runs on the GUI thread before fork.
             _ = setenv("TERM", "xterm-256color", 1);
+            // Best-effort: a failed chdir (deleted folder, etc.) just leaves the shell in
+            // whatever cwd it inherited rather than aborting the launch.
+            if (cwd_z) |c| _ = chdir(c.ptr);
             const shell: [*:0]const u8 = std.c.getenv("SHELL") orelse "/bin/zsh";
             const argv = [_:null]?[*:0]const u8{shell};
             _ = execvp(shell, &argv);

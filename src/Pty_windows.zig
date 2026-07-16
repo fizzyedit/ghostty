@@ -45,7 +45,7 @@ pub const Pty = struct {
     extern "kernel32" fn UpdateProcThreadAttribute(lpAttributeList: *anyopaque, dwFlags: w.DWORD, Attribute: usize, lpValue: ?*anyopaque, cbSize: usize, lpPreviousValue: ?*anyopaque, lpReturnSize: ?*usize) callconv(.winapi) w.BOOL;
     extern "kernel32" fn DeleteProcThreadAttributeList(lpAttributeList: *anyopaque) callconv(.winapi) void;
 
-    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16) !Pty {
+    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16, cwd: ?[]const u8) !Pty {
         // Pipe pair: we write keystrokes into in_write; ConPTY reads in_read.
         var in_read: w.HANDLE = undefined;
         var in_write: w.HANDLE = undefined;
@@ -91,6 +91,14 @@ pub const Pty = struct {
 
         // CreateProcessW may scribble on the command line; give it a mutable copy.
         var cmdline = std.unicode.utf8ToUtf16LeStringLiteral("powershell.exe").*;
+
+        var cwd_buf: [std.fs.max_path_bytes]u16 = undefined;
+        const cwd_w: ?[:0]const u16 = if (cwd) |c| blk: {
+            const len = std.unicode.utf8ToUtf16Le(cwd_buf[0 .. cwd_buf.len - 1], c) catch break :blk null;
+            cwd_buf[len] = 0;
+            break :blk cwd_buf[0..len :0];
+        } else null;
+
         var pi: w.PROCESS.INFORMATION = undefined;
         if (w.kernel32.CreateProcessW(
             null,
@@ -100,7 +108,7 @@ pub const Pty = struct {
             .FALSE,
             .{ .extended_startupinfo_present = true },
             null,
-            null,
+            if (cwd_w) |c| c.ptr else null,
             &siex.StartupInfo,
             &pi,
         ) == .FALSE) return error.SpawnFailed;
