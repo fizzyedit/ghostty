@@ -8,13 +8,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = fizzy.plugin.create(b, .{
-        .name = "ghostty",
-        .version = @import("build.zig.zon").version,
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("root.zig"),
-    });
+    const plugin = fizzy.plugin.create(b, .{ .target = target, .optimize = optimize });
 
     // libghostty-vt: VT parser + terminal state machine. Built with Zig 0.15.x in
     // fizzyedit/ghostty_vt and consumed here as a normal package dependency (see
@@ -32,9 +26,9 @@ pub fn build(b: *std.Build) void {
         },
         else => @panic("unsupported target for ghostty_vt"),
     };
-    lib.root_module.addIncludePath(ghostty_vt.path("include"));
-    lib.root_module.addObjectFile(ghostty_vt.path(ghostty_vt_lib));
-    lib.root_module.link_libc = true;
+    plugin.module.addIncludePath(ghostty_vt.path("include"));
+    plugin.module.addObjectFile(ghostty_vt.path(ghostty_vt_lib));
+    plugin.module.link_libc = true;
 
-    fizzy.plugin.install(b, lib, .{});
+    fizzy.plugin.install(b, plugin.lib, .{});
 }

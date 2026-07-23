@@ -4,10 +4,9 @@
 //! plugin dylibs — SDL text input is tied to `TextEntryWidget`, not generic focus). IME /
 //! composed input still arrives as `.text` when the platform sends it.
 const std = @import("std");
-const ghostty = @import("../ghostty.zig");
-const dvui = ghostty.dvui;
-const c = ghostty.c;
-const State = ghostty.State;
+const dvui = @import("dvui");
+const c = @import("c.zig").c;
+const State = @import("State.zig");
 const Terminal = @import("Terminal.zig");
 const Pty = @import("Pty.zig").Pty;
 

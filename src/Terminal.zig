@@ -5,8 +5,7 @@
 //! the PTY read thread during `write`) will guard `update`/`write` for thread safety; the
 //! handles themselves live here.
 const std = @import("std");
-const ghostty = @import("../ghostty.zig");
-const c = ghostty.c;
+const c = @import("c.zig").c;
 
 const Terminal = @This();
 

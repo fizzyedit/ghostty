@@ -1,13 +1,13 @@
 .{
     .name = .ghostty,
-    .version = "0.1.3",
+    .version = "0.0.1",
     .fingerprint = 0x64407a2a356ac9fe,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .fizzy = .{
-            .url = "https://github.com/fizzyedit/fizzy/archive/d7672085b26b8f42448beb426400fccada313697.tar.gz",
-            .hash = "fizzy-0.1.0-c46aVqtvOQDm2KFwddakX9rEFqQb9kQrxbijUKuevVnE",
-            //.path = "../../fizzy",
+            .url = "https://github.com/fizzyedit/fizzy/archive/refs/tags/sdk-v0.1.39.tar.gz",
+            .hash = "fizzy-0.1.0-c46aVuGBOgB-M5FTCdH97iHueA8BTeQPvMk55BvF9MJY",
+            // .path = "../../fizzy",
         },
         .ghostty_vt = .{
             //.path = "../ghostty_vt/package",
@@ -19,8 +19,8 @@
         "ICON.png",
         "build.zig",
         "build.zig.zon",
-        "root.zig",
-        "ghostty.zig",
+        "plugin.zig",
+        "plugin.zig.zon",
         "src",
     },
 }

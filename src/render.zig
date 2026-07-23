@@ -6,9 +6,9 @@
 //! static feed for a live `forkpty` shell + read thread; M5 makes the grid track the panel size.
 const std = @import("std");
 const builtin = @import("builtin");
-const ghostty = @import("../ghostty.zig");
-const dvui = ghostty.dvui;
-const State = ghostty.State;
+const sdk = @import("fizzy_sdk");
+const dvui = @import("dvui");
+const State = @import("State.zig");
 const Terminal = @import("Terminal.zig");
 const Pty = @import("Pty.zig").Pty;
 const input = @import("input.zig");
@@ -50,7 +50,7 @@ pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
         // Opens the shell in the current project folder (matching VSCode's integrated
         // terminal) rather than wherever the app itself was launched from — see
         // `Pty.open`'s doc comment. Falls back to the home directory when no project is open.
-        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows, ghostty.sdk.host().folder() orelse defaultCwd());
+        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows, sdk.host().folder() orelse defaultCwd());
         state.pty.?.setSize(grid.cols, grid.rows, grid.cell_w_px, grid.cell_h_px);
         try state.pty.?.startReader();
     }

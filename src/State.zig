@@ -7,7 +7,7 @@
 //! `scheduleRepaint()`. Everything is created lazily on first draw of the tab.
 const std = @import("std");
 const dvui = @import("dvui");
-const sdk = @import("sdk");
+const sdk = @import("fizzy_sdk");
 const Terminal = @import("Terminal.zig");
 const Pty = @import("Pty.zig").Pty;
 

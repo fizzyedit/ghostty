@@ -5,22 +5,16 @@
 //!
 //! This is a "shell"/utility plugin: it owns no documents, so it implements none of the
 //! document vtable hooks (only `deinit`). See fizzy `docs/PLUGINS.md`.
-const ghostty = @import("../ghostty.zig");
-const sdk = ghostty.sdk;
-const dvui = ghostty.dvui;
-const State = ghostty.State;
-const render = ghostty.render;
-const input = @import("input.zig");
+const sdk = @import("fizzy_sdk");
+const dvui = @import("dvui");
+const State = @import("src/State.zig");
+const render = @import("src/render.zig");
+const input = @import("src/input.zig");
 
-/// Version forwarded from `build.zig.zon` via the build-injected options module — bump it there.
-const plugin_options = @import("fizzy_plugin_options");
-
-/// Identity + versions embedded in the dylib (read by the host on load).
-pub const manifest = sdk.PluginManifest{
-    .id = "ghostty",
-    .name = "Ghostty",
-    .version = plugin_options.version,
-};
+/// Injected at build time from `plugin.zig.zon` — required by fizzy's generated dylib root,
+/// which reaches its own copy of this plugin's identity through this export rather than
+/// importing `fizzy_plugin_options` itself (see fizzy's `docs/PLUGINS.md` §2.5).
+pub const plugin_options = @import("fizzy_plugin_options");
 
 /// Stable, plugin-namespaced contribution id.
 const bottom_terminal = "ghostty.terminal";
@@ -28,11 +22,11 @@ const bottom_terminal = "ghostty.terminal";
 var plugin: sdk.Plugin = .{
     .state = undefined,
     .vtable = &vtable,
-    .id = "ghostty",
-    .display_name = "Ghostty",
+    .id = plugin_options.id,
+    .display_name = plugin_options.name,
 };
 
-const icon_png = @embedFile("../ICON.png");
+const icon_png = @embedFile("ICON.png");
 const icon_source: dvui.ImageSource = .{ .imageFile = .{
     .bytes = icon_png,
     .name = "ICON.png",
@@ -52,6 +46,10 @@ const vtable: sdk.Plugin.VTable = .{
     .deinit = deinit,
     .endFrame = endFrame,
 };
+
+comptime {
+    sdk.Plugin.assertUtilityVTable(vtable);
+}
 
 /// The plugin's own singleton state — a variable it owns. The SDK holds gpa/host.
 var plugin_state: State = .{};
