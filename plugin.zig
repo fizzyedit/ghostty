@@ -34,7 +34,11 @@ const icon_source: dvui.ImageSource = .{ .imageFile = .{
 } };
 
 fn drawPluginIcon(_: ?*anyopaque) void {
+    // `expand = .ratio` fits the logo to whatever rect the host reserved (see `Host.PluginIcon`):
+    // 32px on a plugin-store card, a much smaller row glyph in the settings tree.
+    // `min_size_content` is only the size asked for when the host leaves it to us.
     _ = dvui.image(@src(), .{ .source = icon_source, .shrink = .ratio }, .{
+        .expand = .ratio,
         .gravity_x = 0.5,
         .gravity_y = 0.5,
         .min_size_content = .{ .w = 32, .h = 32 },
