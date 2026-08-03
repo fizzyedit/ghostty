@@ -5,11 +5,10 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .fizzy = .{
-            .url = "https://github.com/fizzyedit/fizzy/releases/download/sdk-v0.1.47/fizzy-sdk-v0.1.47.tar.gz",
-            .hash = "fizzy-0.1.47-SGBwYxBkDADnZf6DNw2wEtXqYFKtf-RIgID8HovlFXoI",
+            .url = "https://github.com/fizzyedit/fizzy/releases/download/sdk-v0.1.48/fizzy-sdk-v0.1.48.tar.gz",
+            .hash = "fizzy-0.1.48-SGBwYz96DAAZKvFgjVfEEH6K1S6X_39BUjJbuXmPN1G_",
         },
         .ghostty_vt = .{
-            //.path = "../ghostty_vt/package",
             .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.2/ghostty-vt-v0.1.2.tar.gz",
             .hash = "ghostty_vt-0.0.0-dev-dsnJsEdCtQM4_stendvmMJBuxfGIzZA7LziNlLslVyHY",
         },
