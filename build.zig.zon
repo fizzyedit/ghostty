@@ -4,13 +4,13 @@
     .fingerprint = 0x64407a2a356ac9fe,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
-        .fizzy = .{
-            .url = "https://github.com/fizzyedit/fizzy/releases/download/sdk-v0.1.50/fizzy-sdk-v0.1.50.tar.gz",
-            .hash = "fizzy-0.1.50-SGBwY0IKDQAV2eW05TlOZbWQMAi0j3SFDLv4geR9AKfw",
-        },
         .ghostty_vt = .{
             .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.2/ghostty-vt-v0.1.2.tar.gz",
             .hash = "ghostty_vt-0.0.0-dev-dsnJsEdCtQM4_stendvmMJBuxfGIzZA7LziNlLslVyHY",
+        },
+        .fizzy = .{
+            .url = "https://github.com/fizzyedit/fizzy/releases/download/sdk-v0.1.51/fizzy-sdk-v0.1.51.tar.gz",
+            .hash = "fizzy-0.1.51-SGBwY_MoDQAaQRD9W0axvl7I1t7egfhA78eSsyiYtvy7",
         },
     },
     .paths = .{
