@@ -128,7 +128,7 @@ pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
                 bg = new_bg;
             }
 
-            if (bg) |b| cell_rect.fill(.{}, .{ .color = b });
+            if (bg) |b| cell_rect.fill(.{}, .{ .color = .{ .color = b } });
 
             if (cell.text.len > 0) {
                 // Swallow render errors per-cell (e.g. a glyph the embedded font can't
@@ -160,7 +160,7 @@ pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
 
     if (term.cursor()) |cur| {
         const cur_rect = cellRect(rs.r, cur.x, cur.y, cw_phys, ch_phys);
-        cur_rect.fill(.{}, .{ .color = default_fg.opacity(0.6) });
+        cur_rect.fill(.{}, .{ .color = .{ .color = default_fg.opacity(0.6) } });
     }
 
     term_box.deinit();
@@ -248,7 +248,7 @@ fn applyUserScrollToTerminal(state: *State, term: *Terminal, viewport_h: f32) vo
 
 fn hLine(cell_rect: dvui.Rect.Physical, y: f32, h: f32, color: dvui.Color) void {
     const bar = dvui.Rect.Physical{ .x = cell_rect.x, .y = y, .w = cell_rect.w, .h = h };
-    bar.fill(.{}, .{ .color = color });
+    bar.fill(.{}, .{ .color = .{ .color = color } });
 }
 
 fn cellRect(base: dvui.Rect.Physical, col: u16, row: u16, cw: f32, ch: f32) dvui.Rect.Physical {

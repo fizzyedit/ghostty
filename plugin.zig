@@ -6,6 +6,7 @@
 //! This is a "shell"/utility plugin: it owns no documents, so it implements none of the
 //! document vtable hooks (only `deinit`). See fizzy `docs/PLUGINS.md`.
 const sdk = @import("fizzy_sdk");
+const std = @import("std");
 const dvui = @import("dvui");
 const State = @import("src/State.zig");
 const render = @import("src/render.zig");
@@ -33,7 +34,8 @@ const icon_source: dvui.ImageSource = .{ .imageFile = .{
     .invalidation = .ptr,
 } };
 
-fn drawPluginIcon(_: ?*anyopaque) void {
+fn paint(_: ?*anyopaque, subject: sdk.Host.Painter.Subject) bool {
+    if (subject != .plugin_logo) return false;
     // `expand = .ratio` fits the logo to whatever rect the host reserved (see `Host.PluginIcon`):
     // 32px on a plugin-store card, a much smaller row glyph in the settings tree.
     // `min_size_content` is only the size asked for when the host leaves it to us.
@@ -43,6 +45,7 @@ fn drawPluginIcon(_: ?*anyopaque) void {
         .gravity_y = 0.5,
         .min_size_content = .{ .w = 32, .h = 32 },
     });
+    return true;
 }
 
 /// Only the hooks this plugin needs; every other vtable field stays `null`.
@@ -63,16 +66,22 @@ var plugin_state: State = .{};
 pub fn register(host: *sdk.Host) !void {
     plugin.state = @ptrCast(&plugin_state);
     try host.registerPlugin(&plugin);
-    try host.registerPluginIcon(.{ .owner = &plugin, .draw = drawPluginIcon });
-    try host.registerBottomView(.{
+    try host.registerPainter(.{ .owner = &plugin, .draw = paint });
+    try host.registerSurface(.{
         .id = bottom_terminal,
         .owner = &plugin,
         .title = "Ghostty",
+        .keywords = sdk.keywords.ide.panel,
         .ctx = &plugin_state,
-        .draw = render.drawTerminal,
+        .draw = drawSurface,
         // Stay visible even with no active document, like pixi's Sprites tab.
         .persistent = true,
     });
+}
+
+fn drawSurface(ctx: ?*anyopaque) anyerror!dvui.App.Result {
+    try render.drawTerminal(ctx);
+    return .ok;
 }
 
 /// Stable `*Plugin` accessor (part of the conventional plugin surface).
@@ -85,6 +94,8 @@ fn deinit(_: *anyopaque) void {
 }
 
 fn endFrame(_: *anyopaque) void {
-    if (!sdk.host().isActiveBottomView(bottom_terminal)) return;
+    // Focus handling only while the terminal is the panel's chosen surface.
+    const chosen = sdk.host().selectionFor(sdk.keywords.ide.panel) orelse return;
+    if (!std.mem.eql(u8, chosen, bottom_terminal)) return;
     input.handleLateFocus(&plugin_state);
 }
