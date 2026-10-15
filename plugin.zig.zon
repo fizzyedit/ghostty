@@ -2,7 +2,7 @@
     .id = "ghostty",
     .name = "Ghostty",
     .version = "0.1.31",
-    .min_sdk_version = "0.2.26",
+    .min_sdk_version = "0.2.27",
     .description = "Ghostty terminal emulator plugin for fizzy",
     .tags = .{ "terminal", "ghostty" },
     .author = "foxnne",
