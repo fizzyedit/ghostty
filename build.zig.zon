@@ -2,7 +2,7 @@
     .name = .ghostty,
     .version = "0.0.1",
     .fingerprint = 0x64407a2a356ac9fe,
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .ghostty_vt = .{
             .url = "https://github.com/fizzyedit/ghostty_vt/releases/download/v0.1.2/ghostty-vt-v0.1.2.tar.gz",
