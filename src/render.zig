@@ -18,7 +18,7 @@ const input = @import("input.zig");
 /// the app process itself inherited, which for a packaged `.app` launched from Finder/Dock is
 /// `/` rather than `~`. Null if the relevant env var isn't set.
 fn defaultCwd() ?[]const u8 {
-    const name = if (builtin.os.tag == .windows) "USERPROFILE" else "HOME";
+    const name = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
     const value = std.c.getenv(name) orelse return null;
     return std.mem.span(value);
 }

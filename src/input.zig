@@ -109,18 +109,18 @@ const Mapped = struct {
 
 fn mapKey(code: dvui.enums.Key) ?Mapped {
     const Key = dvui.enums.Key;
-    const ci = @intFromEnum(code);
+    const ci = @backingInt(code);
 
-    if (ci >= @intFromEnum(Key.a) and ci <= @intFromEnum(Key.z)) {
-        const off: c_int = @intCast(ci - @intFromEnum(Key.a));
+    if (ci >= @backingInt(Key.a) and ci <= @backingInt(Key.z)) {
+        const off: c_int = @intCast(ci - @backingInt(Key.a));
         return .{ .key = c.GHOSTTY_KEY_A + off, .cp = @intCast('a' + off) };
     }
-    if (ci >= @intFromEnum(Key.zero) and ci <= @intFromEnum(Key.nine)) {
-        const off: c_int = @intCast(ci - @intFromEnum(Key.zero));
+    if (ci >= @backingInt(Key.zero) and ci <= @backingInt(Key.nine)) {
+        const off: c_int = @intCast(ci - @backingInt(Key.zero));
         return .{ .key = c.GHOSTTY_KEY_DIGIT_0 + off, .cp = @intCast('0' + off) };
     }
-    if (ci >= @intFromEnum(Key.f1) and ci <= @intFromEnum(Key.f12)) {
-        const off: c_int = @intCast(ci - @intFromEnum(Key.f1));
+    if (ci >= @backingInt(Key.f1) and ci <= @backingInt(Key.f12)) {
+        const off: c_int = @intCast(ci - @backingInt(Key.f1));
         return .{ .key = c.GHOSTTY_KEY_F1 + off, .cp = 0 };
     }
 

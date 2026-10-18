@@ -4,7 +4,7 @@
 //! Windows: ConPTY + PowerShell (`Pty_windows.zig`).
 const builtin = @import("builtin");
 
-const backend = if (builtin.os.tag == .windows)
+const backend = if (builtin.target.os.tag == .windows)
     @import("Pty_windows.zig")
 else
     @import("Pty_unix.zig");

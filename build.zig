@@ -27,6 +27,17 @@ pub fn build(b: *std.Build) void {
         else => @panic("unsupported target for ghostty_vt"),
     };
     plugin.module.addIncludePath(ghostty_vt.path("include"));
+    // libghostty-vt's header, translated once into a module of its own (`c`): Zig 0.17 removed
+    // `@cImport`. `GHOSTTY_STATIC` makes `GHOSTTY_API` a no-op, right for the static lib.
+    const vt_h = b.addTranslateC(.{
+        .root_source_file = ghostty_vt.path("include/ghostty/vt.h"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    vt_h.addIncludePath(ghostty_vt.path("include"));
+    vt_h.defineCMacro("GHOSTTY_STATIC", "1");
+    plugin.module.addImport("c", vt_h.createModule());
     plugin.module.addObjectFile(ghostty_vt.path(ghostty_vt_lib));
     plugin.module.link_libc = true;
 

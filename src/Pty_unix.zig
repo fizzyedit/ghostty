@@ -28,7 +28,7 @@ pub const Pty = struct {
     extern "c" fn ioctl(fd: c_int, request: c_ulong, ...) c_int;
     extern "c" fn _exit(code: c_int) noreturn;
 
-    const TIOCSWINSZ: c_ulong = switch (builtin.os.tag) {
+    const TIOCSWINSZ: c_ulong = switch (builtin.target.os.tag) {
         .linux => 0x5414,
         else => 0x80087467, // macOS / BSD
     };
@@ -103,7 +103,7 @@ pub const Pty = struct {
         while (off < bytes.len) {
             const n = std.c.write(self.master, bytes.ptr + off, bytes.len - off);
             if (n < 0) {
-                if (std.c._errno().* == @intFromEnum(std.c.E.INTR)) continue;
+                if (std.c._errno().* == @backingInt(std.c.E.INTR)) continue;
                 break; // real error (e.g. EPIPE on child exit) — drop the rest
             }
             off += @intCast(n);
