@@ -42,4 +42,13 @@ pub fn build(b: *std.Build) void {
     plugin.module.link_libc = true;
 
     fizzy.plugin.install(b, plugin.lib, .{});
+
+    // The parts that need no window: the `terminal.run` contract and the PTY running a command.
+    const tests = b.addTest(.{ .root_module = b.createModule(.{
+        .root_source_file = b.path("src/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    }) });
+    b.step("test", "Run the unit tests").dependOn(&b.addRunArtifact(tests).step);
 }

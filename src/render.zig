@@ -17,7 +17,7 @@ const input = @import("input.zig");
 /// what a normal terminal app opens to. Without this, `Pty.open` falls back to whatever cwd
 /// the app process itself inherited, which for a packaged `.app` launched from Finder/Dock is
 /// `/` rather than `~`. Null if the relevant env var isn't set.
-fn defaultCwd() ?[]const u8 {
+pub fn defaultCwd() ?[]const u8 {
     const name = if (builtin.target.os.tag == .windows) "USERPROFILE" else "HOME";
     const value = std.c.getenv(name) orelse return null;
     return std.mem.span(value);
@@ -50,7 +50,7 @@ pub fn drawTerminal(ctx: ?*anyopaque) anyerror!void {
         // Opens the shell in the current project folder (matching VSCode's integrated
         // terminal) rather than wherever the app itself was launched from — see
         // `Pty.open`'s doc comment. Falls back to the home directory when no project is open.
-        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows, sdk.host().folder() orelse defaultCwd());
+        state.pty = try Pty.open(state, State.feed, grid.cols, grid.rows, sdk.host().folder() orelse defaultCwd(), null);
         state.pty.?.setSize(grid.cols, grid.rows, grid.cell_w_px, grid.cell_h_px);
         try state.pty.?.startReader();
     }
