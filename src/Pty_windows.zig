@@ -13,6 +13,14 @@ const w = std.os.windows;
 pub const supported = true;
 
 pub const OnData = *const fn (ctx: *anyopaque, bytes: []const u8) void;
+/// The program exited with `code`. Called from the waiter thread.
+pub const OnExit = *const fn (ctx: *anyopaque, code: i32) void;
+
+const Env = @import("Pty.zig").Env;
+/// A program to run instead of PowerShell. `argv[0]` is found on `PATH` with `PATHEXT`, as a
+/// shell would (an `npx.cmd`, say); a batch file runs through `cmd.exe`, which reads its command
+/// line by rules of its own, so an argument it would take as syntax is refused, not escaped.
+const Command = @import("Pty.zig").Command;
 
 pub const Pty = struct {
     hpc: ?w.HANDLE = null,
@@ -23,6 +31,12 @@ pub const Pty = struct {
     stop: std.atomic.Value(bool) = .init(false),
     ctx: *anyopaque = undefined,
     on_data: OnData = undefined,
+    /// Called once the program has exited. Set before `startReader`.
+    on_exit: ?OnExit = null,
+    /// Waits on the program, for `on_exit`: ConPTY keeps its output pipe open past the exit.
+    waiter: ?std.Thread = null,
+    /// The reader has reached the end of the output (rarely before `ClosePseudoConsole`).
+    drained: std.atomic.Value(bool) = .init(false),
 
     const STARTUPINFOEXW = extern struct {
         StartupInfo: w.STARTUPINFOW,
@@ -44,8 +58,24 @@ pub const Pty = struct {
     extern "kernel32" fn InitializeProcThreadAttributeList(lpAttributeList: ?*anyopaque, dwAttributeCount: w.DWORD, dwFlags: w.DWORD, lpSize: *usize) callconv(.winapi) w.BOOL;
     extern "kernel32" fn UpdateProcThreadAttribute(lpAttributeList: *anyopaque, dwFlags: w.DWORD, Attribute: usize, lpValue: ?*anyopaque, cbSize: usize, lpPreviousValue: ?*anyopaque, lpReturnSize: ?*usize) callconv(.winapi) w.BOOL;
     extern "kernel32" fn DeleteProcThreadAttributeList(lpAttributeList: *anyopaque) callconv(.winapi) void;
+    extern "kernel32" fn GetEnvironmentStringsW() callconv(.winapi) ?[*:0]u16;
+    extern "kernel32" fn FreeEnvironmentStringsW(penv: [*:0]u16) callconv(.winapi) w.BOOL;
+    extern "kernel32" fn WaitForSingleObject(hHandle: w.HANDLE, dwMilliseconds: w.DWORD) callconv(.winapi) w.DWORD;
+    extern "kernel32" fn GetExitCodeProcess(hProcess: w.HANDLE, lpExitCode: *w.DWORD) callconv(.winapi) w.BOOL;
+    extern "kernel32" fn GetFileAttributesW(lpFileName: [*:0]const u16) callconv(.winapi) w.DWORD;
+    extern "kernel32" fn Sleep(dwMilliseconds: w.DWORD) callconv(.winapi) void;
+    const INFINITE: w.DWORD = 0xFFFFFFFF;
+    const INVALID_FILE_ATTRIBUTES: w.DWORD = 0xFFFFFFFF;
 
-    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16, cwd: ?[]const u8) !Pty {
+    pub fn open(ctx: *anyopaque, on_data: OnData, cols: u16, rows: u16, cwd: ?[]const u8, command: ?Command) !Pty {
+        var arena_state: std.heap.ArenaAllocator = .init(std.heap.page_allocator);
+        defer arena_state.deinit();
+        const arena = arena_state.allocator();
+        if (command) |c| if (c.argv.len == 0) return error.NoCommand;
+        // CreateProcessW may scribble on the command line; give it a mutable copy.
+        const cmdline = try std.unicode.utf8ToUtf16LeAllocZ(arena, if (command) |c| try commandLine(arena, c) else "powershell.exe");
+        const env_block: ?[]u16 = if (command) |c| try environment(arena, c.env) else null;
+
         // Pipe pair: we write keystrokes into in_write; ConPTY reads in_read.
         var in_read: w.HANDLE = undefined;
         var in_write: w.HANDLE = undefined;
@@ -89,9 +119,6 @@ pub const Pty = struct {
         };
         siex.StartupInfo.cb = @sizeOf(STARTUPINFOEXW);
 
-        // CreateProcessW may scribble on the command line; give it a mutable copy.
-        var cmdline = std.unicode.utf8ToUtf16LeStringLiteral("powershell.exe").*;
-
         var cwd_buf: [std.fs.max_path_bytes]u16 = undefined;
         const cwd_w: ?[:0]const u16 = if (cwd) |c| blk: {
             const len = std.unicode.utf8ToUtf16Le(cwd_buf[0 .. cwd_buf.len - 1], c) catch break :blk null;
@@ -102,12 +129,12 @@ pub const Pty = struct {
         var pi: w.PROCESS.INFORMATION = undefined;
         if (w.kernel32.CreateProcessW(
             null,
-            @ptrCast(&cmdline),
+            cmdline.ptr,
             null,
             null,
             .FALSE,
-            .{ .extended_startupinfo_present = true },
-            null,
+            .{ .extended_startupinfo_present = true, .create_unicode_environment = env_block != null },
+            if (env_block) |e| @ptrCast(e.ptr) else null,
             if (cwd_w) |c| c.ptr else null,
             &siex.StartupInfo,
             &pi,
@@ -126,9 +153,135 @@ pub const Pty = struct {
 
     pub fn startReader(self: *Pty) !void {
         self.thread = try std.Thread.spawn(.{}, readLoop, .{self});
+        if (self.on_exit != null) self.waiter = try std.Thread.spawn(.{}, waitLoop, .{self});
+    }
+
+    fn waitLoop(self: *Pty) void {
+        const p = self.process orelse return;
+        _ = WaitForSingleObject(p, INFINITE);
+        if (self.stop.load(.acquire)) return;
+        var code: w.DWORD = 0;
+        if (GetExitCodeProcess(p, &code) == .FALSE) return;
+        // Give the reader a moment for what the program wrote last, so the exit reads after it.
+        var waited: u32 = 0;
+        while (!self.drained.load(.acquire) and waited < 250) : (waited += 10) Sleep(10);
+        if (self.on_exit) |f| f(self.ctx, @bitCast(code));
+    }
+
+    /// The command line for `cmd`: its program found on `PATH`, and its arguments quoted as the
+    /// C runtime reads them; a batch file through `cmd.exe /d /c`.
+    fn commandLine(arena: std.mem.Allocator, cmd: Command) ![]const u8 {
+        var out: std.Io.Writer.Allocating = .init(arena);
+        const wr = &out.writer;
+        const path_value = for (cmd.env) |e| {
+            if (std.ascii.eqlIgnoreCase(e.name, "PATH")) break e.value;
+        } else getenv(arena, "PATH");
+        const program = try find(arena, cmd.argv[0], path_value);
+        const batch = std.ascii.endsWithIgnoreCase(program, ".cmd") or std.ascii.endsWithIgnoreCase(program, ".bat");
+        if (batch) {
+            // cmd.exe expands %VAR% and takes & | < > ^ ( ) as syntax, inside quotes or not as
+            // the quotes fall; no escaping holds for every argument, so those are refused.
+            for (cmd.argv) |arg| if (std.mem.indexOfAny(u8, arg, "%&|<>^()!\"\r\n") != null) return error.UnsafeBatchArgument;
+            try wr.writeAll("cmd.exe /d /c \"");
+        }
+        try quote(wr, program);
+        for (cmd.argv[1..]) |arg| {
+            try wr.writeByte(' ');
+            try quote(wr, arg);
+        }
+        if (batch) try wr.writeByte('"');
+        return out.written();
+    }
+
+    /// `name` on `path_value` with each of `PATHEXT`'s extensions, as cmd.exe finds a program;
+    /// `name` itself when it names a path or is not found (CreateProcessW then says so).
+    fn find(arena: std.mem.Allocator, name: []const u8, path_value: ?[]const u8) ![]const u8 {
+        if (std.mem.indexOfAny(u8, name, "\\/:") != null) return name;
+        const exts = getenv(arena, "PATHEXT") orelse ".COM;.EXE;.BAT;.CMD";
+        var dirs = std.mem.splitScalar(u8, path_value orelse return name, ';');
+        while (dirs.next()) |dir| {
+            if (dir.len == 0) continue;
+            var it = std.mem.splitScalar(u8, exts, ';');
+            while (it.next()) |ext| {
+                if (ext.len == 0) continue;
+                const candidate = try std.fmt.allocPrint(arena, "{s}\\{s}{s}", .{ dir, name, ext });
+                const wide = try std.unicode.utf8ToUtf16LeAllocZ(arena, candidate);
+                if (GetFileAttributesW(wide.ptr) != INVALID_FILE_ATTRIBUTES) return candidate;
+            }
+        }
+        return name;
+    }
+
+    fn getenv(arena: std.mem.Allocator, name: []const u8) ?[]const u8 {
+        const block = GetEnvironmentStringsW() orelse return null;
+        defer _ = FreeEnvironmentStringsW(block);
+        var p: [*:0]const u16 = block;
+        while (p[0] != 0) {
+            const entry = std.mem.span(p);
+            p += entry.len + 1;
+            const eq = std.mem.indexOfScalarPos(u16, entry, 1, '=') orelse continue;
+            const key = std.unicode.utf16LeToUtf8Alloc(arena, entry[0..eq]) catch continue;
+            if (!std.ascii.eqlIgnoreCase(key, name)) continue;
+            return std.unicode.utf16LeToUtf8Alloc(arena, entry[eq + 1 ..]) catch null;
+        }
+        return null;
+    }
+
+    fn quote(wr: *std.Io.Writer, arg: []const u8) !void {
+        if (arg.len > 0 and std.mem.indexOfAny(u8, arg, " \t\"") == null) return wr.writeAll(arg);
+        try wr.writeByte('"');
+        var backslashes: usize = 0;
+        for (arg) |ch| {
+            if (ch == '\\') {
+                backslashes += 1;
+                continue;
+            }
+            const n = if (ch == '"') backslashes * 2 + 1 else backslashes;
+            try wr.splatByteAll('\\', n);
+            backslashes = 0;
+            try wr.writeByte(ch);
+        }
+        try wr.splatByteAll('\\', backslashes * 2);
+        try wr.writeByte('"');
+    }
+
+    /// The app's environment with `TERM` set, under `overrides`, as the double-null-terminated
+    /// UTF-16 block `CreateProcessW` takes. Names compare without case, as Windows does.
+    fn environment(arena: std.mem.Allocator, overrides: []const Env) ![]u16 {
+        var out: std.ArrayListUnmanaged(u16) = .empty;
+        if (GetEnvironmentStringsW()) |block| {
+            defer _ = FreeEnvironmentStringsW(block);
+            var p: [*:0]const u16 = block;
+            while (p[0] != 0) {
+                const entry = std.mem.span(p);
+                p += entry.len + 1;
+                const eq = std.mem.indexOfScalarPos(u16, entry, 1, '=') orelse continue;
+                const name = try std.unicode.utf16LeToUtf8Alloc(arena, entry[0..eq]);
+                if (overridden(overrides, name) or std.ascii.eqlIgnoreCase(name, "TERM")) continue;
+                try out.appendSlice(arena, entry);
+                try out.append(arena, 0);
+            }
+        }
+        if (!overridden(overrides, "TERM")) {
+            try out.appendSlice(arena, std.unicode.utf8ToUtf16LeStringLiteral("TERM=xterm-256color"));
+            try out.append(arena, 0);
+        }
+        for (overrides) |e| {
+            const line = try std.fmt.allocPrint(arena, "{s}={s}", .{ e.name, e.value });
+            try out.appendSlice(arena, try std.unicode.utf8ToUtf16LeAlloc(arena, line));
+            try out.append(arena, 0);
+        }
+        try out.append(arena, 0);
+        return out.items;
+    }
+
+    fn overridden(overrides: []const Env, name: []const u8) bool {
+        for (overrides) |e| if (std.ascii.eqlIgnoreCase(e.name, name)) return true;
+        return false;
     }
 
     fn readLoop(self: *Pty) void {
+        defer self.drained.store(true, .release);
         const out_read = self.out_read orelse return;
         var buf: [4096]u8 = undefined;
         while (!self.stop.load(.acquire)) {
@@ -151,6 +304,10 @@ pub const Pty = struct {
         if (self.thread) |t| {
             t.join();
             self.thread = null;
+        }
+        if (self.waiter) |t| {
+            t.join();
+            self.waiter = null;
         }
         if (self.out_read) |h| w.CloseHandle(h);
         self.out_read = null;
